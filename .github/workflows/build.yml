@@ -11,14 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    services:
+      sonarqube:
+       image: sonarqube:10.7.0-developer
+       ports:
+         - 9000:9000
+       volumes:
+         - sonarqube_data:/opt/sonarqube/data
+         - sonarqube_logs:/opt/sonarqube/logs
+         - sonarqube_extensions:/opt/sonarqube/extensions
+       options: >-
+         --health-cmd "grep -Fq \"SonarQube is operational\" /opt/sonarqube/logs/sonar.log"
+         --health-interval 10s
+         --health-timeout 5s
+         --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
       - name: Install sonar-scanner and build-wrapper
-        uses: sonarsource/sonarqube-github-c-cpp@v2
+        uses: sonarsource/sonarqube-github-c-cpp@antonio/SQCPPGHA-9-rebranding-and-forward
         env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} # SonarQube URL is stored in a GitHub secret
+          SONAR_HOST_URL: http://localhost:9000 # SonarQube URL is stored in a GitHub secret
       - name: Run build-wrapper
         run: |
           mkdir build
@@ -26,10 +40,8 @@ jobs:
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build/ --config Release
       - name: Run sonar-scanner
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }} # Put the name of your token here
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} # SonarQube URL is stored in a GitHub secret
+          SONAR_HOST_URL: http://localhost:9000 # SonarQube URL is stored in a GitHub secret
         run:
-          sonar-scanner --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
+          sonar-scanner -Dsonar.login=admin -Dsonar.password=admin --debug --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
           # if you are using using sonarqube 10.5 or earlier, replace sonar.cfamily.compile-commands with sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}"
           # as build-wrapper does not generate a compile_commands.json file before sonarqube 10.6
