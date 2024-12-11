@@ -29,8 +29,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Install sonar-scanner and build-wrapper
-        uses: sonarsource/sonarqube-github-c-cpp@antonio/SQCPPGHA-9-rebranding-and-forward
+      - name: Install build-wrapper
+        uses: sonarsource/sonarqube-scan-action/install-build-wrapper@antonio/SQCPPGHA-9-rebranding-and-forward
         env:
           SONAR_HOST_URL: http://localhost:9000 # SonarQube URL is stored in a GitHub secret
       - name: Run build-wrapper
@@ -38,10 +38,15 @@ jobs:
           mkdir build
           cmake -S . -B build
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build/ --config Release
-      - name: Run sonar-scanner
+      - name: Install and run sonar-scanner
+        uses: sonarsource/sonarqube-scan-action/install-build-wrapper@antonio/SQCPPGHA-9-rebranding-and-forward
         env:
           SONAR_HOST_URL: http://localhost:9000 # SonarQube URL is stored in a GitHub secret
-        run:
-          sonar-scanner -Dsonar.login=admin -Dsonar.password=admin --debug --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
+        with:
+          args: >
+            -Dsonar.login=admin 
+            -Dsonar.password=admin 
+            --debug 
+            --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
           # if you are using using sonarqube 10.5 or earlier, replace sonar.cfamily.compile-commands with sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}"
           # as build-wrapper does not generate a compile_commands.json file before sonarqube 10.6
